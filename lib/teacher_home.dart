@@ -6,6 +6,8 @@ import 'login_page.dart';
 import 'models/course.dart';
 import 'create_course_page.dart';
 import 'course_detail_page.dart';
+import 'payout_service.dart';
+import 'payout_settings_page.dart';
 
 class TeacherHome extends StatefulWidget {
   const TeacherHome({super.key});
@@ -16,12 +18,35 @@ class TeacherHome extends StatefulWidget {
 
 class _TeacherHomeState extends State<TeacherHome> {
   final _courseService = CourseService();
+  final _payoutService = PayoutService();
   late Future<List<Course>> _coursesFuture;
+
+  // Starts as true so the red dot doesn't flash before we know.
+  bool _hasPayoutNumber = true;
 
   @override
   void initState() {
     super.initState();
     _coursesFuture = _courseService.fetchMyCourses();
+    _loadPayoutStatus();
+  }
+
+  Future<void> _loadPayoutStatus() async {
+    try {
+      final number = await _payoutService.fetchBkashNumber();
+      if (!mounted) return;
+      setState(() => _hasPayoutNumber = number != null);
+    } catch (_) {
+      // Ignore: the dot just stays hidden.
+    }
+  }
+
+  Future<void> _openPayoutSettings() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PayoutSettingsPage()),
+    );
+    _loadPayoutStatus();
   }
 
   void _refresh() {
@@ -68,6 +93,15 @@ class _TeacherHomeState extends State<TeacherHome> {
       appBar: AppBar(
         title: const Text('My Courses'),
         actions: [
+          IconButton(
+            tooltip: 'Payout settings',
+            icon: Badge(
+              smallSize: 9,
+              isLabelVisible: !_hasPayoutNumber,
+              child: const Icon(Icons.account_balance_wallet_outlined),
+            ),
+            onPressed: _openPayoutSettings,
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
